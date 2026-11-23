@@ -87,6 +87,7 @@ jobs:
           BUILD_CONFIG: ../out/target/product/a07/obj/KERNEL_OBJ/build.config
           LTO: ${{ inputs.lto }}
           SKIP_MRPROPER: "1"
+          LOCALVERSION: "-31702120"
         run: |
           set -o pipefail
           ./build/build.sh 2>&1 | tee "$GITHUB_WORKSPACE/build.log"
