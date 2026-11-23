@@ -42,10 +42,17 @@ jobs:
           TOOLS="awk basename bash bc bison cat chmod cmp comm cp cpio cut date dd diff dirname echo env expr false find flex gawk getconf getopt git grep gzip head hostname id install lz4 m4 make md5sum mkdir mktemp mv nproc openssl patch perl printf pwd python python2 python3 readlink realpath rm rmdir rsync sed seq sh sha1sum sha256sum sha512sum sleep sort stat sync tail tar tac tee test touch tr true tsort uname uniq unzip wc which xargs xz zcat zip ld ld.bfd as ar nm objcopy objdump strip ranlib gcc cc g++ cpp pkg-config tput rev ln ls mkfifo od ps cmake"
           for t in $TOOLS; do
             p=$(command -v "$t" || true)
-            if [ -n "$p" ] && [ ! -e "$B/$t" ]; then ln -s "$p" "$B/$t"; fi
+            if [ -n "$p" ]; then ln -sf "$p" "$B/$t"; fi
           done
           for p in /usr/bin/aarch64-linux-gnu-* /usr/bin/arm-linux-gnueabi-*; do
-            if [ -e "$p" ] && [ ! -e "$B/$(basename "$p")" ]; then ln -s "$p" "$B/$(basename "$p")"; fi
+            if [ -e "$p" ]; then ln -sf "$p" "$B/$(basename "$p")"; fi
+          done
+          # Samsung's tree ships dangling symlinks here; repoint any that match a runner tool
+          for l in "$B"/*; do
+            if [ -L "$l" ] && [ ! -e "$l" ]; then
+              n=$(basename "$l"); p=$(command -v "$n" || true)
+              if [ -n "$p" ]; then ln -sf "$p" "$l"; else echo "still missing: $n"; fi
+            fi
           done
           ls "$B" | wc -l
 
