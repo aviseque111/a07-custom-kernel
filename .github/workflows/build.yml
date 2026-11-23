@@ -56,6 +56,14 @@ jobs:
             fi
           done
           ls "$B" | wc -l
+          CB="$GITHUB_WORKSPACE/kernel/kernel/prebuilts-master/clang/host/linux-x86/clang-r416183b/bin"
+          for d in /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin; do
+            for f in "$d"/*; do
+              n="${f##*/}"
+              if [ -f "$f" ] && [ -x "$f" ] && [ ! -e "$CB/$n" ] && [ ! -e "$B/$n" ]; then ln -sf "$f" "$B/$n"; fi
+            done
+          done
+          echo "tools linked: $(ls "$B" | wc -l)"; ls "$B" | grep -E "^(whoami|hostname|uname|nl|dtc|id)$"
           S="$GITHUB_WORKSPACE/kernel/kernel/build/build-tools/sysroot"
           rm -rf "$S"
           ln -s / "$S"
