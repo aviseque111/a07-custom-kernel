@@ -21,17 +21,33 @@ jobs:
       - name: Host packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison flex libssl-dev libelf-dev cpio \
+          sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev cpio \
             python-is-python3 python3 rsync zip unzip xz-utils lz4 \
             gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+          sudo apt-get install -y python2 || true
 
-      - name: Fetch AOSP clang r416183b (same compiler as the stock kernel)
+      - name: Fetch AOSP clang r416183b into the path build.sh expects
         run: |
-          mkdir -p "$HOME/clang"
+          D="$GITHUB_WORKSPACE/kernel/kernel/prebuilts-master/clang/host/linux-x86/clang-r416183b"
+          mkdir -p "$D"
           curl -fL --retry 3 -o clang.tgz \
             "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/e0d2094f1f6cfcbf1d82a8be7fd9c756810e7eb3/clang-r416183b.tar.gz"
-          tar -xzf clang.tgz -C "$HOME/clang"
-          "$HOME/clang/bin/clang" --version
+          tar -xzf clang.tgz -C "$D"
+          "$D/bin/clang" --version
+
+      - name: Populate build-tools path (build.sh uses a locked-down PATH)
+        run: |
+          B="$GITHUB_WORKSPACE/kernel/kernel/build/build-tools/path/linux-x86"
+          mkdir -p "$B"
+          TOOLS="awk basename bash bc bison cat chmod cmp comm cp cpio cut date dd diff dirname echo env expr false find flex gawk getconf getopt git grep gzip head hostname id install lz4 m4 make md5sum mkdir mktemp mv nproc openssl patch perl printf pwd python python2 python3 readlink realpath rm rmdir rsync sed seq sh sha1sum sha256sum sha512sum sleep sort stat sync tail tar tac tee test touch tr true tsort uname uniq unzip wc which xargs xz zcat zip ld ld.bfd as ar nm objcopy objdump strip ranlib gcc cc g++ cpp pkg-config tput rev ln ls mkfifo od ps cmake"
+          for t in $TOOLS; do
+            p=$(command -v "$t" || true)
+            if [ -n "$p" ] && [ ! -e "$B/$t" ]; then ln -s "$p" "$B/$t"; fi
+          done
+          for p in /usr/bin/aarch64-linux-gnu-* /usr/bin/arm-linux-gnueabi-*; do
+            if [ -e "$p" ] && [ ! -e "$B/$(basename "$p")" ]; then ln -s "$p" "$B/$(basename "$p")"; fi
+          done
+          ls "$B" | wc -l
 
       - name: Generate build.config
         working-directory: kernel/kernel-5.10
@@ -42,8 +58,6 @@ jobs:
             --kernel-defconfig-overlays "entry_level.config hs07.config" \
             -m user \
             -o ../out/target/product/a07/obj/KERNEL_OBJ/build.config
-          echo "---- generated build.config ----"
-          cat ../out/target/product/a07/obj/KERNEL_OBJ/build.config
 
       - name: Build
         working-directory: kernel/kernel
@@ -58,17 +72,18 @@ jobs:
           LTO: ${{ inputs.lto }}
           SKIP_MRPROPER: "1"
         run: |
-          export PATH="$HOME/clang/bin:$PATH"
+          set -o pipefail
           ./build/build.sh 2>&1 | tee "$GITHUB_WORKSPACE/build.log"
 
       - name: Collect outputs
         if: success()
         run: |
           mkdir -p dist
-          find kernel/out -name 'Image.gz' -o -name 'Image' -o -name '*.ko' -o -name 'dtb*' -o -name '*.dtb' | head -2000 | while read f; do
-            cp --parents "$f" dist/ 2>/dev/null || true
+          find kernel/out \( -name 'Image.gz' -o -name 'Image' -o -name '*.ko' -o -name '*.dtb' -o -name 'dtbo.img' -o -name '.config' \) -type f | while read f; do
+            cp --parents "$f" dist/
           done
           cd dist && zip -qr ../a07-kernel-out.zip . && cd ..
+          ls -la ../a07-kernel-out.zip || ls -la a07-kernel-out.zip
 
       - name: Upload build log
         if: always()
