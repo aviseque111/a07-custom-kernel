@@ -1,0 +1,85 @@
+name: Build A07 Kernel
+
+on:
+  workflow_dispatch:
+    inputs:
+      lto:
+        description: "LTO mode (stock is full; thin/none use far less RAM)"
+        default: "thin"
+        type: choice
+        options: [thin, none, full]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Host packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison flex libssl-dev libelf-dev cpio \
+            python-is-python3 python3 rsync zip unzip xz-utils lz4 \
+            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+
+      - name: Fetch AOSP clang r416183b (same compiler as the stock kernel)
+        run: |
+          mkdir -p "$HOME/clang"
+          curl -fL --retry 3 -o clang.tgz \
+            "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/e0d2094f1f6cfcbf1d82a8be7fd9c756810e7eb3/clang-r416183b.tar.gz"
+          tar -xzf clang.tgz -C "$HOME/clang"
+          "$HOME/clang/bin/clang" --version
+
+      - name: Generate build.config
+        working-directory: kernel/kernel-5.10
+        run: |
+          python scripts/gen_build_config.py \
+            --kernel-defconfig a07_00_defconfig \
+            --kernel-defconfig-overlays "entry_level.config hs07.config" \
+            -m user \
+            -o ../out/target/product/a07/obj/KERNEL_OBJ/build.config
+          echo "---- generated build.config ----"
+          cat ../out/target/product/a07/obj/KERNEL_OBJ/build.config
+
+      - name: Build
+        working-directory: kernel/kernel
+        env:
+          ARCH: arm64
+          PLATFORM_VERSION: "12"
+          CROSS_COMPILE: aarch64-linux-gnu-
+          CROSS_COMPILE_COMPAT: arm-linux-gnueabi-
+          OUT_DIR: ../out/target/product/a07/obj/KERNEL_OBJ
+          DIST_DIR: ../out/target/product/a07/obj/KERNEL_OBJ
+          BUILD_CONFIG: ../out/target/product/a07/obj/KERNEL_OBJ/build.config
+          LTO: ${{ inputs.lto }}
+          SKIP_MRPROPER: "1"
+        run: |
+          export PATH="$HOME/clang/bin:$PATH"
+          ./build/build.sh 2>&1 | tee "$GITHUB_WORKSPACE/build.log"
+
+      - name: Collect outputs
+        if: success()
+        run: |
+          mkdir -p dist
+          find kernel/out -name 'Image.gz' -o -name 'Image' -o -name '*.ko' -o -name 'dtb*' -o -name '*.dtb' | head -2000 | while read f; do
+            cp --parents "$f" dist/ 2>/dev/null || true
+          done
+          cd dist && zip -qr ../a07-kernel-out.zip . && cd ..
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          if-no-files-found: ignore
+
+      - name: Upload kernel + modules
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a07-kernel-out
+          path: a07-kernel-out.zip
