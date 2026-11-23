@@ -55,6 +55,11 @@ jobs:
             fi
           done
           ls "$B" | wc -l
+          S="$GITHUB_WORKSPACE/kernel/kernel/build/build-tools/sysroot"
+          rm -rf "$S"
+          ln -s / "$S"
+          echo "---- _setup_env.sh 100-135 ----"
+          sed -n 100,135p "$GITHUB_WORKSPACE/kernel/kernel/build/_setup_env.sh"
 
       - name: Generate build.config
         working-directory: kernel/kernel-5.10
