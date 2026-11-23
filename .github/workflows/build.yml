@@ -54,7 +54,7 @@ jobs:
           for d in /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin; do
             for f in "$d"/*; do
               n="${f##*/}"
-              if [ -f "$f" ] && [ -x "$f" ] && [ ! -e "$CB/$n" ] && [ ! -e "$B/$n" ]; then ln -sf "$f" "$B/$n"; fi
+              if [ -f "$f" ] && [ -x "$f" ] && [ ! -e "$CB/$n" ] ; then ln -sfn "$f" "$B/$n"; fi
             done
           done
           for l in "$B"/*; do
