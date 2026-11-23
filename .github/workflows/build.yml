@@ -36,7 +36,8 @@ jobs:
       - name: Generate build.config
         working-directory: kernel/kernel-5.10
         run: |
-          python scripts/gen_build_config.py \
+          if sudo apt-get install -y python2; then PY=python2; else 2to3 -w -n scripts/gen_build_config.py; PY=python3; fi
+          $PY scripts/gen_build_config.py \
             --kernel-defconfig a07_00_defconfig \
             --kernel-defconfig-overlays "entry_level.config hs07.config" \
             -m user \
