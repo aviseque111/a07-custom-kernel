@@ -25,6 +25,7 @@ jobs:
             python-is-python3 python3 rsync zip unzip xz-utils lz4 \
             gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
           sudo apt-get install -y python2 || true
+          sudo apt-get install -y device-tree-compiler kmod lzop zstd bzip2 file
 
       - name: Fetch AOSP clang r416183b into the path build.sh expects
         run: |
@@ -39,7 +40,7 @@ jobs:
         run: |
           B="$GITHUB_WORKSPACE/kernel/kernel/build/build-tools/path/linux-x86"
           mkdir -p "$B"
-          TOOLS="awk basename bash bc bison cat chmod cmp comm cp cpio cut date dd diff dirname echo env expr false find flex gawk getconf getopt git grep gzip head hostname id install lz4 m4 make md5sum mkdir mktemp mv nproc openssl patch perl printf pwd python python2 python3 readlink realpath rm rmdir rsync sed seq sh sha1sum sha256sum sha512sum sleep sort stat sync tail tar tac tee test touch tr true tsort uname uniq unzip wc which xargs xz zcat zip ld ld.bfd as ar nm objcopy objdump strip ranlib gcc cc g++ cpp pkg-config tput rev ln ls mkfifo od ps cmake"
+          TOOLS="awk basename bash bc bison cat chmod cmp comm cp cpio cut date dd diff dirname echo env expr false find flex gawk getconf getopt git grep gzip head hostname id install lz4 m4 make md5sum mkdir mktemp mv nproc openssl patch perl printf pwd python python2 python3 readlink realpath rm rmdir rsync sed seq sh sha1sum sha256sum sha512sum sleep sort stat sync tail tar tac tee test touch tr true tsort uname uniq unzip wc which xargs xz zcat zip ld ld.bfd as ar nm objcopy objdump strip ranlib gcc cc g++ cpp pkg-config tput rev ln ls mkfifo od ps cmake dtc nl join paste fold depmod modinfo kmod lzop zstd bzip2 file readelf size strings addr2line fdtget fdtput fdtdump"
           for t in $TOOLS; do
             p=$(command -v "$t" || true)
             if [ -n "$p" ]; then ln -sf "$p" "$B/$t"; fi
